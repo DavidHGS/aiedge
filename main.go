@@ -195,6 +195,7 @@ func img2Video() {
 		fmt.Println("Could not open codec")
 		os.Exit(1)
 	}
+
 	//2. 创建输出视频上下文
 	outFormat := avformat.AvformatAllocContext()
 	if avformat.AvformatAllocOutputContext2(&outFormat, nil, "mp4", dstPath) < 0 {
