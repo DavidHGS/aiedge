@@ -55,6 +55,7 @@ import (
 	"image"
 	"image/color"
 	"image/jpeg"
+	"io/ioutil"
 	"log"
 	"os"
 	"unsafe"
@@ -131,6 +132,8 @@ func img2Video() {
 	imgPath := "./images/netFrame1.jpg"
 	dstPath := "./new.mp4"
 	videoIndex := -1
+
+	/*************************打开图片 生成解码器信息******************************************************************************************************/
 	// 创建jpg的解封装上下文
 	pFormatContext := avformat.AvformatAllocContext()
 	if avformat.AvformatOpenInput(&pFormatContext, imgPath, nil, nil) != 0 {
@@ -144,8 +147,11 @@ func img2Video() {
 	}
 
 	pFormatContext.AvDumpFormat(0, imgPath, 0)
+	/*************************end***********************************************************************************************************************************/
+
 	var pCodecCtx *avcodec.Context
-	//创建编解码器及初始化解码器上下文用于对jpg进行解码
+	//创建解码器
+	//初始化解码器上下文用于对jpg进行解码
 	for i := 0; i < int(pFormatContext.NbStreams()); i++ {
 		stream := pFormatContext.Streams()[i]
 		/** 对于jpg图片来说，它里面就是一路视频流，所以媒体类型就是AVMEDIA_TYPE_VIDEO
@@ -159,7 +165,7 @@ func img2Video() {
 			}
 			// Alloc context
 			pCodecCtx := pCodec.AvcodecAllocContext3()
-			//Copy context 设置解码参数；文件解封装的AVStream中就包括了解码参数，这里直接拷贝流
+			// 将解码器参数复制给编码器
 			if pCodecCtx.AvcodecCopyContext((*avcodec.Context)(unsafe.Pointer(stream.Codec()))) != 0 {
 				fmt.Println("Couldn't copy codec context")
 				os.Exit(1)
@@ -195,17 +201,24 @@ func img2Video() {
 		fmt.Println("Could not open codec")
 		os.Exit(1)
 	}
-
+	/*************************创建编码器 生成编码器信息****************************************************************************************************************************************************************************/
 	//2. 创建输出视频上下文
 	outFormat := avformat.AvformatAllocContext()
 	if avformat.AvformatAllocOutputContext2(&outFormat, nil, "mp4", dstPath) < 0 {
 		fmt.Println("AvformatAllocOutputContext2 error")
 		os.Exit(1)
 	}
+	/*************************创建输出流生成编码器信息****************************************************************************************************************************************************************************/
 	//添加视频流
 	stream := outFormat.AvformatNewStream(nil)
 	videoOutIndex := stream.Index()
 	//设置视频流参数;直接从编码器上下文拷贝 将AVCodecContext信息拷贝到AVCodecParameterst结构体中
+
+	// stream.Codec().SetWidth(inStream.Codec().GetWidth())
+	// stream.Codec().SetHeight(inStream.Codec().GetHeight())
+	// stream.Codec().SetPixelFormat(inStream.Codec().GetPixelFormat())
+	// stream.Codec().SetTimeBase(inStream.TimeBase())
+
 	if (*avcodec.Context)(unsafe.Pointer(stream.Codec())).AvcodecCopyContext(EnCodecCtx) < 0 {
 		fmt.Println("Couldn't copy codec context")
 		os.Exit(1)
@@ -217,6 +230,15 @@ func img2Video() {
 	// initialize SWS context for software scaling
 	swsCtx := swscale.SwsGetcontext(inStream.Codec().GetWidth(), inStream.Codec().GetHeight(), swscale.PixelFormat(inStream.Codec().GetPixelFormat()),
 		EnCodecCtx.Width(), EnCodecCtx.Height(), swscale.PixelFormat(EnCodecCtx.PixFmt()), 0, nil, nil, nil) //avcodec.SWS_BICUBIC
+
+	// 打开或创建输出文件
+
+	pb, err := avformat.AvIOOpen(dstPath, avformat.AVIO_FLAG_WRITE)
+	outFormat.SetPb(pb)
+	if err != nil {
+		fmt.Println("Could not open output file!")
+		os.Exit(1)
+	}
 	//写视频文件头
 	if outFormat.AvformatWriteHeader(nil) < 0 {
 		fmt.Println("avformat_write_header failed!")
@@ -293,10 +315,10 @@ func doEncode(enFrame *avutil.Frame, EnCodecCtx *avcodec.Context, outFormat *avf
 }
 
 func video2Img() {
-	// filename := "./src/sample.mp4"
+	filename := "./src/sample.mp4"
 	//视频流地址
 	//初始化网络库
-	filename := "rtmp://192.168.20.221:30200/live/2gz8r2nfcg8q8"
+	// filename := "rtmp://192.168.20.221:30200/live/2gz8r2nfcg8q8"
 	avformat.AvformatNetworkInit()
 	// Open video file
 	pFormatContext := avformat.AvformatAllocContext()
@@ -562,5 +584,211 @@ func video2Img() {
 }
 
 func main() {
-	img2Video()
+	img2Video3()
+}
+func img2Video4() {
+
+}
+
+func img2Video3() {
+	ofmt_ctx := avformat.AvformatAllocContext()
+	out_filename := "out.mp4"
+	avformat.AvRegisterAll() //初始化解码器和复用器
+	avformat.AvformatAllocOutputContext2(&ofmt_ctx, nil, "mp4", out_filename)
+	out_stream := add_vidio_stream(ofmt_ctx)
+	ofmt_ctx.AvDumpFormat(0, out_filename, 1)
+	flag := ofmt_ctx.Flags() & avcodec.AV_CODEC_ID_MJPEG
+	if flag == 0 {
+		pb, err := avformat.AvIOOpen(out_filename, avformat.AVIO_FLAG_WRITE)
+		ofmt_ctx.SetPb(pb)
+		if err != nil {
+			fmt.Printf("Could not open output file %s", out_filename)
+			os.Exit(1)
+		}
+	}
+
+	ofmt_ctx.AvformatWriteHeader(nil)
+
+	frame_index := 1
+	// numBytes := uintptr(avcodec.AvpictureGetSize(avcodec.AV_PIX_FMT_YUV420P9, out_stream.Codec().GetWidth(),
+	// 	out_stream.Codec().GetHeight()))
+	// buffer := avutil.AvMalloc(numBytes)
+	pkt := avcodec.AvPacketAlloc()
+	pkt.AvInitPacket()
+	pkt.SetFlags(pkt.Flags() | avcodec.AV_PKT_FLAG_KEY)
+	pkt.SetStreamIndex(out_stream.Index()) //获取视频信息，为压入帧图像做准备
+	var fileName string
+	for frame_index <= 30 {
+		fileName = fmt.Sprintf("./images/netFrame%d.jpg", frame_index)
+		file, err := os.Open(fileName)
+		fileBytes, _ := ioutil.ReadAll(file)
+		if err != nil {
+			fmt.Println("Open file failed")
+		}
+
+		//怎么去读文件指针？
+		pkt.AvPacketFromData((*uint8)(unsafe.Pointer(&fileBytes)), len(fileBytes)) //将图像写入包
+		if ret := ofmt_ctx.AvWriteFrame(pkt); ret < 0 {                            //写入图像到视频
+			fmt.Println("pkt write error")
+			os.Exit(1)
+		}
+		fmt.Printf("Write %8d frames to output file\n", frame_index)
+		frame_index++
+	}
+	ofmt_ctx.AvDumpFormat(0, out_filename, 1)
+	// pkt.AvFreePacket()
+	ofmt_ctx.AvWriteTrailer() //写文件尾
+	// ofmt_ctx&&ofmt_ctx.Flags()&avformat.AvGetFrameFilename()
+	avformat.AvformatAllocContext().Pb().Close() //关闭视频文件
+	ofmt_ctx.AvformatFreeContext()               //
+}
+func add_vidio_stream(oc *avformat.Context) *avformat.Stream {
+	st := oc.AvformatNewStream(nil) //AVStream
+	//申请AVStream->codec(AVCodecContext对象)空间并设置默认值(由avcodec_get_context_defaults3()设置
+	codec := avcodec.AvcodecFindDecoder(avcodec.CodecId(avcodec.AV_CODEC_ID_MJPEG))
+	codcCtx := codec.AvcodecAllocContext3()
+	(*avcodec.Context)(unsafe.Pointer(st.Codec())).AvcodecCopyContext(codcCtx)
+	st.Codec().SetBitRate(400000)
+	st.Codec().SetWidth(1280)
+	st.Codec().SetHeight(720)
+	st.Codec().SetTimeBase(avcodec.NewRational(1, 25))
+	st.Codec().SetPixelFormat(avcodec.AV_PIX_FMT_YUV420P9)
+	return st
+}
+func img2Video2() {
+	imgPath := "./images/netFrame1.jpg"
+	dstPath := "./new.mp4"
+	videoIndex := -1
+
+	/*************************打开图片 生成解码器信息******************************************************************************************************/
+	// 创建jpg的解封装上下文
+	pFormatContext := avformat.AvformatAllocContext()
+	if avformat.AvformatOpenInput(&pFormatContext, imgPath, nil, nil) != 0 {
+		fmt.Printf("Unable to open file %s\n", imgPath)
+		os.Exit(1)
+	}
+	// Retrieve stream information
+	if pFormatContext.AvformatFindStreamInfo(nil) < 0 {
+		fmt.Println("Couldn't find stream information")
+		os.Exit(1)
+	}
+
+	pFormatContext.AvDumpFormat(0, imgPath, 0)
+	/*************************end***********************************************************************************************************************************/
+	/*************************创建编码器 生成编码器信息****************************************************************************************************************************************************************************/
+	//2. 创建输出视频上下文
+	outFormat := avformat.AvformatAllocContext()
+	if avformat.AvformatAllocOutputContext2(&outFormat, nil, "mp4", dstPath) < 0 {
+		fmt.Println("AvformatAllocOutputContext2 error")
+		os.Exit(1)
+	}
+
+	var pCodecCtx *avcodec.Context
+	//创建解码器
+	//初始化解码器上下文用于对jpg进行解码
+	for i := 0; i < int(pFormatContext.NbStreams()); i++ {
+		stream := pFormatContext.Streams()[i]
+		var outStream *avformat.Stream
+		/** 对于jpg图片来说，它里面就是一路视频流，所以媒体类型就是AVMEDIA_TYPE_VIDEO
+		 */
+		if stream.CodecParameters().AvCodecGetType() == avformat.AVMEDIA_TYPE_VIDEO {
+			// 用输出流上下文创建输出流
+			outStream = outFormat.AvformatNewStream(nil)
+			// Find the decoder for the video stream
+			pCodec := avcodec.AvcodecFindDecoder(avcodec.CodecId(stream.Codec().GetCodecId()))
+			if pCodec == nil {
+				fmt.Println("Unsupported codec!")
+				os.Exit(1)
+			}
+			// 将解码器参数复制给编码器
+			if (*avcodec.Context)(unsafe.Pointer(outStream.Codec())).AvcodecCopyContext((*avcodec.Context)(unsafe.Pointer(stream.Codec()))) != 0 {
+				fmt.Println("Couldn't copy codec context")
+				os.Exit(1)
+			}
+
+			videoIndex = i
+			break
+		}
+	}
+	outFormat.AvDumpFormat(0, dstPath, 1)
+
+	pb, err := avformat.AvIOOpen(dstPath, avformat.AVIO_FLAG_WRITE)
+	outFormat.SetPb(pb)
+	if err != nil {
+		fmt.Println("Could not open output file!")
+		os.Exit(1)
+	}
+	//写视频文件头
+	if outFormat.AvformatWriteHeader(nil) < 0 {
+		fmt.Println("avformat_write_header failed!")
+		os.Exit(1)
+	}
+	///1 创建编码器 查找编码器
+	//创建h264编码器及编码上下文
+	encodec := avcodec.AvcodecFindDecoder(avcodec.CodecId(avcodec.AV_CODEC_ID_H264))
+	if encodec == nil {
+		fmt.Println("Unsupported codec!")
+		os.Exit(1)
+	}
+	// Alloc context
+	EnCodecCtx := encodec.AvcodecAllocContext3()
+	inStream := pFormatContext.Streams()[videoIndex]
+	//配置编码器上下文的成员
+	//设置画面宽度 高度 输出像素格式（pix_fmt)
+	EnCodecCtx.SetEncodeParams(inStream.Codec().GetWidth(), inStream.Codec().GetHeight(), inStream.Codec().GetPixelFormat())
+	//设置帧率，num为分子，den为分母，如果是1/25则表示25帧/s
+	EnCodecCtx.SetTimebase(1, 25)
+	// 设置全局编码信息
+	// EnCodecCtx.Set= EnCodecCtx.Flags() | avcodec.AV_CODEC_FLAG_GLOBAL_HEADER
+	//打开编码器
+	if EnCodecCtx.AvcodecOpen2(encodec, nil) < 0 {
+		fmt.Println("Could not open codec")
+		os.Exit(1)
+	}
+
+	/*************************创建输出流生成编码器信息****************************************************************************************************************************************************************************/
+	//添加视频流
+	stream := outFormat.AvformatNewStream(nil)
+	videoOutIndex := stream.Index()
+	//设置视频流参数;直接从编码器上下文拷贝 将AVCodecContext信息拷贝到AVCodecParameterst结构体中
+	if (*avcodec.Context)(unsafe.Pointer(stream.Codec())).AvcodecCopyContext(EnCodecCtx) < 0 {
+		fmt.Println("Couldn't copy codec context")
+		os.Exit(1)
+	}
+	fmt.Println("*****打印AVFormatContext的内容************************")
+	outFormat.AvDumpFormat(0, dstPath, 1)
+	// avformat.AvIOOpen(outFormat.Pb(),dstPath,)
+
+	// initialize SWS context for software scaling
+	swsCtx := swscale.SwsGetcontext(inStream.Codec().GetWidth(), inStream.Codec().GetHeight(), swscale.PixelFormat(inStream.Codec().GetPixelFormat()),
+		EnCodecCtx.Width(), EnCodecCtx.Height(), swscale.PixelFormat(EnCodecCtx.PixFmt()), 0, nil, nil, nil) //avcodec.SWS_BICUBIC
+	//写视频文件头
+	if outFormat.AvformatWriteHeader(nil) < 0 {
+		fmt.Println("avformat_write_header failed!")
+		os.Exit(1)
+	}
+	// 创建编解码用的AVFrame
+	deFrame := avutil.AvFrameAlloc()
+	enFrame := avutil.AvFrameAlloc()
+	avutil.AvSetFrame(enFrame, EnCodecCtx.Width(), EnCodecCtx.Height(), int(EnCodecCtx.PixFmt()))
+	avutil.AvFrameGetBuffer(enFrame, 32)
+	avutil.AvFrameMakeWritable(enFrame)
+
+	inPkt := avcodec.AvPacketAlloc()
+	for { //while 循环
+		if pFormatContext.AvReadFrame(inPkt) == 0 {
+			break
+		}
+		if inPkt.StreamIndex() != videoIndex {
+			continue
+		}
+		//先解码
+		doDecode(pCodecCtx, inPkt, deFrame, enFrame, swsCtx, EnCodecCtx, outFormat, videoOutIndex)
+		inPkt.AvPacketUnref()
+	}
+	//刷新解码缓冲区
+	doDecode(nil, nil, nil, nil, nil, nil, nil, videoOutIndex)
+	outFormat.AvWriteTrailer()
+	fmt.Println("转换视频结束")
+	os.Exit(1)
 }

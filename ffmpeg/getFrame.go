@@ -326,7 +326,8 @@ func main() {
 			// Note that pFrameRGB is an AVFrame, but AVFrame is a superset
 			// of AVPicture
 			avp := (*avcodec.Picture)(unsafe.Pointer(pFrameRGB))
-			avp.AvpictureFill((*uint8)(buffer), avcodec.AV_PIX_FMT_RGB24, pCodecCtx.Width(), pCodecCtx.Height())
+			avp.AvpictureFill((*uint8)(buffer), avcodec.AV_PIX_FMT_RGB24,
+				pCodecCtx.Width(), pCodecCtx.Height())
 
 			// initialize SWS context for software scaling
 			swsCtx := swscale.SwsGetcontext(
