@@ -258,11 +258,11 @@ func doEncode(enFrame *avutil.Frame, EnCodecCtx *avcodec.Context, outFormat *avf
 
 }
 
-func main() {
+func VideoGetNetImg(frameNum int) {
 	// filename := "./src/sample.mp4"
 	//视频流地址
 	//初始化网络库
-	filename := "rtmp://192.168.20.221:30200/live/2gz8r2nfcg8q8"
+	filename := "rtmp://192.168.20.221:30200/live/2dfp52anvad7g"
 	avformat.AvformatNetworkInit()
 	// Open video file
 	pFormatContext := avformat.AvformatAllocContext()
@@ -367,7 +367,7 @@ func main() {
 							return
 						}
 
-						if frameNumber <= 30 {
+						if frameNumber <= frameNum {
 							// Convert the image from its native format to RGB
 							swscale.SwsScale2(swsCtx, avutil.Data(pFrame),
 								avutil.Linesize(pFrame), 0, pCodecCtx.Height(),
@@ -485,7 +485,7 @@ func main() {
 							return
 						}
 
-						if frameNumber <= 30 {
+						if frameNumber <= frameNum {
 							// Convert the image from its native format to RGB
 							swscale.SwsScale2(swsCtx, avutil.Data(pFrame),
 								avutil.Linesize(pFrame), 0, pCodecCtx.Height(),
