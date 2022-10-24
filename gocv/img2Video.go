@@ -7,8 +7,11 @@ import (
 )
 
 func Img2Video(frame_bfs, frame_width, frame_height, frame_num int) {
+	// outputName := "video01.avi" // 尾巴要有数字，不知道哪里少了个库
+	// codec := "MJPG"
 	outputName := "video02.mp4"
-	codec := "mp4v"
+	// codec := "mp4v"
+	codec := "X264"
 	bfs := float64(frame_bfs)
 	frameWidth := frame_width
 	frameHeight := frame_height
@@ -30,5 +33,20 @@ func Img2Video(frame_bfs, frame_width, frame_height, frame_num int) {
 		videoWriter.Write(mat)
 		defer mat.Close()
 	}
-	fmt.Println("ok")
+	fmt.Println("Img2Video ok")
 }
+
+// func testPushStream() {
+// 	camera, err := gocv.VideoCaptureDevice(0)
+// 	img := gocv.NewMat()
+
+// 	for {
+// 		//从摄像头获取视频数据
+// 		camera.Read(&img)
+// 		//图像Base64编码
+// 		data, err := gocv.IMEncode(".jpg", img)
+// 		n := base64.StdEncoding.EncodedLen(len(data))
+// 		dst := make([]byte, n)
+// 		base64.StdEncoding()
+// 	}
+// }
