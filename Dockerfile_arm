@@ -1,4 +1,5 @@
-FROM ubuntu:20.04 AS build
+FROM huangzhenming/ubuntu20.04.arm64:v1.0 AS build
+
 
 ## 设置时区
 RUN apt-get -y update && DEBIAN_FRONTEND="noninteractive" apt -y install tzdata
@@ -22,8 +23,8 @@ RUN mkdir /app/tmp
 
 ## 安装go1.17.8
 RUN chmod -R 777 /app/tmp&& cd /app/tmp
-RUN wget https://go.dev/dl/go1.17.8.linux-amd64.tar.gz &&\
-    tar -C /usr/local -xzf go1.17.8.linux-amd64.tar.gz &&\
+RUN wget https://go.dev/dl/go1.17.8.linux-arm64.tar.gz &&\
+    tar -C /usr/local -xzf go1.17.8.linux-arm64.tar.gz &&\
     ## 软链接
     ln -s /usr/local/go/bin/* /usr/bin/
     # 设置环境变量

@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aiapp-arm-start
+  namespace: aiedge
+spec:
+  selector:
+    matchLabels:
+      app: aiapp-arm-start
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: aiapp-arm-start
+    spec:
+      containers:
+      - name: aiapp
+        image: david945/aiapp-arm:start
+        imagePullPolicy: IfNotPresent
+        env:
+          - name: IMG_NUM
+            value: "300"
+          - name: FPS
+            value: "25"
+          - name: PULLSTREAM_URL
+            value: "rtmp://192.168.20.150:30200/live/stream1"
+          - name: PUSHSTREAM_URL
+            value: "rtmp://192.168.20.150:30200/live/stream"
+        securityContext:
+          privileged: true
+      nodeSelector:
+        kubernetes.io/hostname: edge1-nx40
