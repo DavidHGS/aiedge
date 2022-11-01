@@ -1,0 +1,28 @@
+---
+
+kind: pipeline
+type: exec
+name: build and publish for amd64
+platform:
+  os: linux
+  arch: amd64
+steps:
+  - name: build and publish
+    environment:
+      DOCKER_CONFIG: /root/.docker/
+    commands:
+      - ./build.sh v2.0 
+
+---
+kind: pipeline
+type: exec
+name: build and publish for arm64
+platform:
+  os: linux
+  arch: arm64
+steps:
+  - name: build and publish
+    environment:
+      DOCKER_CONFIG: /root/.docker/
+    commands:
+      - ./build.sh v2.0
