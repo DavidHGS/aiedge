@@ -5,20 +5,29 @@ import (
 	"aiedge/ffmpeg"
 	"aiedge/gocv"
 	"aiedge/post"
+	"aiedge/stream"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 )
+
+type User struct {
+	Username string `json:"username" gorm:"primary_key;not null;unique;comment:'用户名'"`
+	Password string `json:"password" gorm:"comment:'密码'"`
+}
 
 func main() {
 	//系统变量
 	//IMG_NUM 默认为30
 	//FPS 25
-	//PULLSTREAM_URL 默认为 rtmp://aiedge.ndsl-lab.cn:8035/live/stream1
+	//PULLSTREAM_URL 默认为 rtmp://aiedge.ndsl-lab.cn:8035/live/stream12
 	//PUSHSTREAM_URL 默认为 rtmp://aiedge.ndsl-lab.cn:8035/live/stream
 	/*****************************图片参数*************************************************/
 	imgNum := 30 //截取图片数量
@@ -44,28 +53,64 @@ func main() {
 	frameHeight := 720 //视频帧高度
 	/*****************************接口参数*************************************************/
 	// pullStreamUrl := "rtmp://aiedge.ndsl-lab.cn:8035/live/2d6tsn0iqy108" //拉流地址
-	pullStreamUrl := "rtmp://aiedge.ndsl-lab.cn:8035/live/stream1" //拉流地址
-	if PULLSTREAM_URL := os.Getenv("PULLSTREAM_URL"); PULLSTREAM_URL != "" {
-		pullStreamUrl = os.Getenv("PULLSTREAM_URL") //拉流地址
-	}
+	// pullStreamUrl := "rtmp://aiedge.ndsl-lab.cn:8035/live/stream1" //拉流地址
+	// if PULLSTREAM_URL := os.Getenv("PULLSTREAM_URL"); PULLSTREAM_URL != "" {
+	// 	pullStreamUrl = os.Getenv("PULLSTREAM_URL") //拉流地址
+	// }
+	// fmt.Println(pullStreamUrl)
 	pushStreamUrl := "rtmp://aiedge.ndsl-lab.cn:8035/live/stream" //推流地址
 	if PUSHSTREAM_URL := os.Getenv("PUSHSTREAM_URL"); PUSHSTREAM_URL != "" {
 		pushStreamUrl = os.Getenv("PUSHSTREAM_URL") //拉流地址
 	}
-	fmt.Println(pullStreamUrl)
 	// objectDetectionUrl := "http://192.168.1.200:30001/v1/object-detection" //目标检测接口地址
-	objectDetectionUrl := "http://192.168.20.150:30001/v1/face/detection" //人脸识别接口地址
-
+	objectDetectionUrl := "http://192.168.20.150:30123/v1/face/detection" //人脸识别接口地址
+	if OBJECTDETECTIONURL := os.Getenv("OBJECTDETECTIONURL"); OBJECTDETECTIONURL != "" {
+		objectDetectionUrl = os.Getenv("OBJECTDETECTIONURL") //人脸识别地址
+	}
 	loginUrl := "http://192.168.20.150:30089/api/v1/auth/signin" //用户登录，获取jwt接口地址
-
+	edge_devname := "edge1-cam1.aiedge-public-device"
+	if EDGE_DEVNAME := os.Getenv("EDGE_DEVNAME"); EDGE_DEVNAME != "" {
+		edge_devname = os.Getenv("EDGE_DEVNAME")
+	}
 	start := time.Now()
 
-	//拉流抽帧
-	ffmpeg.VideoGetNetImg(imgNum, pullStreamUrl)
 	// buff := ffmpeg.VideoGetNetImg2buff(imgNum, pullStreamUrl)
 	//Post
-	jwtToken := post.Signin("liujiaxi", "123", loginUrl)
+	//add secreat username password
+	var user User
+	data, err := ioutil.ReadFile("./config/user.json")
+	if err != nil {
+		log.Println("load user.json fail: ", err)
+		return
+	}
+	if err := json.Unmarshal(data, &user); err != nil {
+		log.Println("Unmarshal user.json fail: ", err)
+		return
+	}
+	jwtToken := post.Signin(user.Username, user.Password, loginUrl)
 	println(jwtToken.Msg)
+
+	//环境变量 edge-devname=edge1-cam1
+	edge := strings.Split(strings.Split(edge_devname, ".")[0], "-")[0]
+	devName := strings.Split(strings.Split(edge_devname, ".")[0], "-")[1]
+	namespace := "aiedge-public-device"
+	//getStreamCode
+	streamcode := stream.GetStream(jwtToken.Msg, edge+"-"+devName, edge, namespace)
+	fmt.Println(streamcode)
+
+	//send heartbeat
+	var hbsignal = make(chan string)
+	//start goruntime
+	go stream.Sendheartbeats(jwtToken.Msg, devName, edge, namespace, streamcode.Streamcode, hbsignal)
+
+	//拉流抽帧
+	fmt.Println(streamcode.Rtmp)
+	ffmpeg.VideoGetNetImg(imgNum, streamcode.Rtmp)
+
+	//stop goruntime
+	hbsignal <- "stop"
+	close(hbsignal)
+
 	for i := 1; i <= imgNum; i++ {
 		filePath := fmt.Sprintf(inputPath, i) //源文件路径
 		detectionRes := post.DetectionResult{}
@@ -84,6 +129,7 @@ func main() {
 		}
 		draw.DrawRectOnImageAndSave(fileOutput, fileBytes, rectsInfo)
 	}
+
 	//拼接成视频
 	// gocv.Img2Video(30, 1280, 720, imgNum)
 	gocv.Img2Video(fps, frameWidth, frameHeight, imgNum)

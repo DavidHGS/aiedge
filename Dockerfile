@@ -57,13 +57,14 @@ ENV IMG_NUM ""
 ENV PULLSTREAM_URL ""
 ENV PUSHSTREAM_URL ""
 ENV FPS ""
-
+ENV OBJECTDETECTIONURL ""
+ENV EDGE_DEVNAME ""
 RUN mkdir /app/aiedge
 COPY . /app/aiedge
 CMD cd /app/aiedge/&& go run main.go
 # CMD /app/aiedge/myapp
-
-
+##docker run --privileged -it -e IMG_NUM="125" -e FPS="25" -e PULLSTREAM_URL="rtmp://192.168.20.150:30200/live/stream1" -e PUSHSTREAM_URL="rtmp://192.168.20.150:30200/live/stream" david945/aiapp-arm:v2
+##docker commit -c 'ENTRYPOINT [ "/bin/bash", "-l", "-c" ]' -c 'CMD ["cd /tmp/aiedge/&& go run main.go"]' -m "添加自启动" fadba059e018 david945/aiapp-arm:v6
 
 
 
