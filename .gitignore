@@ -1,4 +1,4 @@
 .vscode/*
 *.avi
-*.mp4
-*.jpg
+# *.mp4
+# *.jpg
