@@ -92,7 +92,7 @@ package ffmpeg
 // 		sec := strconv.Itoa(i)
 // 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5000)*time.Millisecond)
 // 		cmd := exec.CommandContext(ctx, ffmpegPath,
-// 			"-loglevel", "error",
+// 			"-fmtlevel", "error",
 // 			"-y",
 // 			"-ss", sec,
 // 			"-t", "1",

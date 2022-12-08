@@ -21,7 +21,7 @@ package ffmpeg
 // // format.
 // import (
 // 	"fmt"
-// 	"log"
+// 	"fmt"
 // 	"os"
 // 	"unsafe"
 
@@ -52,7 +52,7 @@ package ffmpeg
 // 	fileName := fmt.Sprintf("./images/frame%d.ppm", frameNumber)
 // 	file, err := os.Create(fileName)
 // 	if err != nil {
-// 		log.Println("Error Reading")
+// 		fmt.Println("Error Reading")
 // 	}
 // 	defer file.Close()
 

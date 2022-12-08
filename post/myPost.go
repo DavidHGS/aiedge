@@ -1,6 +1,7 @@
 package post
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -16,21 +17,22 @@ type JwtToken struct { //获取token
 	Msg string
 }
 type Rectangle struct {
-	Bottom float64
-	Left   float64
-	Right  float64
-	Top    float64
+	Bottom float64 `json:"bottom"`
+	Left   float64 `json:"left"`
+	Right  float64 `json:"right"`
+	Top    float64 `json:"top"`
 }
 type DetectionObject struct {
-	Label int8
-	Rect  Rectangle
-	Score float64
+	Label int8      `json:"label"`
+	Rect  Rectangle `json:"rect"`
+	Score float64   `json:"score"`
 }
 type DetectionResult struct {
-	Rects []*DetectionObject
+	Rects []*DetectionObject `json:"rects"`
 }
 
-func Signin(username, password string) JwtToken {
+func Signin(username, password, url string) JwtToken {
+	// url = "http://1.117.224.103:6100/api/v1/auth/signin"
 	jwt := JwtToken{}
 	client := resty.New()
 	resp, err := client.R().
@@ -40,7 +42,7 @@ func Signin(username, password string) JwtToken {
 			Password: password,
 		}).
 		SetResult(&jwt).
-		Post("http://1.117.224.103:6100/api/v1/auth/signin")
+		Post(url)
 
 	if err != nil {
 		fmt.Println("resp:", resp)
@@ -48,8 +50,28 @@ func Signin(username, password string) JwtToken {
 	}
 	return jwt
 }
+func PostDetectionFormBuffer(filePath, token, url string, buffer *bytes.Buffer) DetectionResult {
+	// url="http://192.168.1.200:30001/v1/object-detection"
 
-func PostDetection(filePath, token string) DetectionResult {
+	detectionResult := DetectionResult{}
+	client := resty.New()
+	resp, err := client.R().
+		SetHeader("Content-Type", "image/jpeg").
+		SetBody(buffer.Bytes()).
+		SetAuthToken(token).
+		SetResult(&detectionResult).
+		// SetAuthToken("Bearer " + token).
+		// Post("http://172.26.70.122:30001/v1/object-detection")//zerotier Ip
+		Post(url)
+	if err != nil {
+		fmt.Println("resp:", resp)
+		fmt.Println("error on PostDetection ", err.Error())
+	}
+	return detectionResult
+}
+
+func PostDetection(filePath, token, url string) DetectionResult {
+	// url="http://192.168.1.200:30001/v1/object-detection"
 	file, _ := os.Open(filePath)
 	fileBytes, _ := ioutil.ReadAll(file)
 
@@ -62,10 +84,40 @@ func PostDetection(filePath, token string) DetectionResult {
 		SetResult(&detectionResult).
 		// SetAuthToken("Bearer " + token).
 		// Post("http://172.26.70.122:30001/v1/object-detection")//zerotier Ip
-		Post("http://192.168.1.200:30001/v1/object-detection")
+		Post(url)
 	if err != nil {
 		fmt.Println("resp:", resp)
 		fmt.Println("error on PostDetection ", err.Error())
 	}
 	return detectionResult
 }
+
+func singlePostDection(filePath, token, url string, detectionResList []DetectionResult) {
+	// url="http://192.168.1.200:30001/v1/object-detection"
+	file, _ := os.Open(filePath)
+	fileBytes, _ := ioutil.ReadAll(file)
+
+	detectionResult := DetectionResult{}
+	client := resty.New()
+	resp, err := client.R().
+		SetHeader("Content-Type", "image/jpeg").
+		SetBody(fileBytes).
+		SetAuthToken(token).
+		SetResult(&detectionResult).
+		// SetAuthToken("Bearer " + token).
+		// Post("http://172.26.70.122:30001/v1/object-detection")//zerotier Ip
+		Post(url)
+	if err != nil {
+		fmt.Println("resp:", resp)
+		fmt.Println("error on PostDetection ", err.Error())
+	}
+	detectionResList = append(detectionResList, detectionResult)
+}
+
+// func MutiPostDetection(filePath, token, url string) []DetectionResult {
+// 	var detectionResList []DetectionResult
+// 	wg := &sync.WaitGroup{}
+
+// 	go singlePostDection(filePath, token, url, detectionResList)
+// 	return detectionResList
+// }
