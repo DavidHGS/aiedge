@@ -2,7 +2,7 @@ package main
 
 // import (
 // 	"fmt"
-// 	"log"
+// 	"fmt"
 
 // 	"github.com/vmihailenco/msgpack"
 // )
@@ -23,14 +23,14 @@ package main
 // 	if err != nil {
 // 		panic(err)
 // 	}
-// 	log.Printf("%s", b)
+// 	fmt.Printf("%s", b)
 
 // 	tp2 := new(TStruct)
 // 	err = msgpack.Unmarshal(b, tp2)
 // 	if err != nil {
 // 		panic(err)
 // 	}
-// 	log.Printf("%v", tp2)
+// 	fmt.Printf("%v", tp2)
 // }
 
 // func (t *TStruct) String() string {

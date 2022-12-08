@@ -25,11 +25,11 @@ import (
 	"image"
 	"image/color"
 	"image/jpeg"
-	"log"
 	"os"
 	"unsafe"
 
 	"github.com/giorgisio/goav/swscale"
+	"gocv.io/x/gocv"
 
 	"github.com/giorgisio/goav/avcodec"
 	"github.com/giorgisio/goav/avformat"
@@ -42,7 +42,7 @@ func SaveFramePPM(frame *avutil.Frame, width, height, frameNumber int) {
 	fileName := fmt.Sprintf("./images/frame%d.ppm", frameNumber)
 	file, err := os.Create(fileName)
 	if err != nil {
-		log.Println("Error Reading")
+		fmt.Println("Error Reading")
 	}
 	defer file.Close()
 
@@ -69,8 +69,8 @@ func SaveFrameJpg(frame *avutil.Frame, width, height, frameNumber int) {
 	fileName := fmt.Sprintf("./images/frame%d.jpg", frameNumber)
 	file, err := os.Create(fileName)
 	if err != nil {
-		log.Println("Error Reading")
-		log.Println(err)
+		fmt.Println("Error Reading")
+		fmt.Println(err)
 	}
 	defer file.Close()
 
@@ -90,11 +90,37 @@ func SaveFrameJpg(frame *avutil.Frame, width, height, frameNumber int) {
 			img.SetRGBA(x, y, color.RGBA{pixel[0], pixel[1], pixel[2], 0xff})
 		}
 	}
+	//img image.Image
 	err = jpeg.Encode(file, img, nil)
 	if err != nil {
 		fmt.Println("jpeg.Encode err: ", err)
-		log.Println("Error jpeg.Encode")
+		fmt.Println("Error jpeg.Encode")
 	}
+}
+
+// SaveFrame writes a single frame to gocv.Mat
+func SaveFrameTocvMat(frame *avutil.Frame, width, height int) (gocv.Mat, error) {
+
+	bytes := make([]byte, width*height*3)
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	for y := 0; y < height; y++ {
+		data0 := avutil.Data(frame)[0]
+		startPos := uintptr(unsafe.Pointer(data0)) + uintptr(y)*uintptr(avutil.Linesize(frame)[0])
+		//fmt.Println("startPos: ", startPos)
+		xxx := width * 3
+		for x := 0; x < width; x++ {
+			var pixel = make([]byte, 3)
+			for i := 0; i < 3; i++ {
+				element := *(*uint8)(unsafe.Pointer(startPos + uintptr(xxx)))
+				pixel[i] = element
+				xxx++
+			}
+			bytes = append(bytes, byte(pixel[0]>>8), byte(pixel[1]>>8), byte(pixel[2]>>8))
+			img.SetRGBA(x, y, color.RGBA{pixel[0], pixel[1], pixel[2], 0xff})
+		}
+	}
+	//img image.Image
+	return gocv.NewMatFromBytes(width, height, gocv.MatTypeCV8UC3, bytes)
 }
 
 // SaveFrame writes a single frame to buffer
@@ -120,7 +146,7 @@ func SaveFrame2Buffer(frame *avutil.Frame, width, height, frameNumber int) (*byt
 	err := jpeg.Encode(buff, img, nil)
 	if err != nil {
 		fmt.Println("jpeg.Encode err: ", err)
-		log.Println("Error jpeg.Encode")
+		fmt.Println("Error jpeg.Encode")
 	}
 
 	bigBuff := new(bytes.Buffer)
@@ -562,6 +588,7 @@ func VideoGetNetImg(frameNum int, url string) {
 							// Save the frame to disk
 							fmt.Printf("Writing frame %d\n", frameNumber)
 							SaveFrameJpg(pFrameRGB, pCodecCtx.Width(), pCodecCtx.Height(), frameNumber)
+
 						} else {
 							return
 						}
@@ -714,7 +741,7 @@ func VideoGetNetImg(frameNum int, url string) {
 	}
 }
 
-//网络拉流抽帧
+//网络拉流抽帧 未完善
 func VideoGetNetImg2buff(frameNum int, url string) *bytes.Buffer {
 	//视频流地址
 	// url="rtmp://192.168.20.221:30200/live/2dfp52anvad7g"

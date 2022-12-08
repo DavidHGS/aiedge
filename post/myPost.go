@@ -17,18 +17,18 @@ type JwtToken struct { //获取token
 	Msg string
 }
 type Rectangle struct {
-	Bottom float64
-	Left   float64
-	Right  float64
-	Top    float64
+	Bottom float64 `json:"bottom"`
+	Left   float64 `json:"left"`
+	Right  float64 `json:"right"`
+	Top    float64 `json:"top"`
 }
 type DetectionObject struct {
-	Label int8
-	Rect  Rectangle
-	Score float64
+	Label int8      `json:"label"`
+	Rect  Rectangle `json:"rect"`
+	Score float64   `json:"score"`
 }
 type DetectionResult struct {
-	Rects []*DetectionObject
+	Rects []*DetectionObject `json:"rects"`
 }
 
 func Signin(username, password, url string) JwtToken {

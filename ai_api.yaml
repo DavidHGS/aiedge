@@ -1,0 +1,672 @@
+openapi: 3.0.0
+servers:
+  # Added by API Auto Mocking Plugin
+  - description: SwaggerHub API Auto Mocking
+    url: https://virtserver.swaggerhub.com/LIUJIAXI984_1/whitebox_ai/1.0.0
+info:
+  version: "1.0.0"
+  title: Whitebox AI
+  description: 白盒 AI 模块 API
+tags:
+  - name: face
+    description: 人脸相关的 API
+  - name: body
+    description: 行人（人体）相关的 API
+  - name: vector
+    description: 向量检索相关的 API
+  - name: trajectory
+    description: 轨迹相关的 API
+paths:
+  /face-detection:
+    get:
+      description: 执行人脸检测
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema: {}
+      parameters:
+        - name: detection_model
+          in: query
+          required: false
+          description: 使用的检测模型
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/face-dection-result'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error-info'
+      tags:
+        - face
+  /face-feature:
+    get:
+      description: 人脸特征提取
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                face_landmark:
+                  $ref: '#/components/schemas/face-landmark'
+                face_image:         # 不要直接发整张图片，将人脸子图切出来后再发送
+                  type: string
+                  format: binary
+      parameters:
+        - name: feature_model
+          in: query
+          required: false
+          description: 使用的特征模型
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/face-feature-result'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error-info'
+      tags:
+        - face
+  /head-pose:
+    get:
+      description: 头部姿态估计
+      requestBody:
+        required: true
+        content:
+          image/jpeg:   # 不要直接发整张图片，将人脸子图切出来后再发送
+            schema: {}
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/head-pose-result'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error-info'
+      tags:
+        - face
+  /blur-detection:
+    get:
+      description: 模糊检测（ MC 提出可以用检测的置信度来替代，没必要有一个单独的模糊检测）
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema: {}
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/blur-detection-result'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error-info'
+  /face-recognition:
+    get:
+      description: 人脸识别（包含人脸识别的整条流水线，这个接口代表一种可选的方案，就是将所有人脸的 API 封到一个容器里，以减少重复发送人脸子图消耗的网络带宽，当然即使不采用这种设计，也可作为人脸业务暴露给外界的接口）
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema: {}
+      parameters:
+        - name: detection_model
+          in: query
+          required: false
+          description: 使用的检测模型
+          schema:
+            type: string
+        - name: feature_model
+          in: query
+          required: false
+          description: 使用的特征模型
+          schema:
+            type: string
+        - name: detection_threshold
+          in: query
+          required: false
+          description: 检测阈值（高于阈值的检测框才会被提取特征和返回），不提供该参数就是全部提取和返回
+          schema:
+            type: number
+            format: float
+            minimum: 0.0
+            maximum: 1.0
+        - name: is_headpose_needed
+          in: query
+          description: 是否需要做头部姿态预测
+          schema:
+            type: boolean
+            default: false
+        - name: is_blur_detection_needed
+          in: query
+          description: 是否需要做模糊检测
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/face-recognition-result'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error-info'
+      tags:
+        - face
+  /object-detection:
+    get:
+      description: 执行通用目标检测
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema: {}
+      parameters:
+        - name: detection_model
+          in: query
+          required: false
+          description: 使用的目标检测模型
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/object-detection-result'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error-info'
+  /human-keypoints:
+    get:
+      description: 执行（多人）人体关键点检测
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema: {}
+      parameters:
+        - name: keypoints_model
+          in: query
+          required: false
+          description: 使用的人体关键点模型
+          schema:
+            type: string
+        - name: with_bbox
+          in: query
+          description: 是否要返回人体的检测框（两阶段的关键点检测是先做了目标检测再做关键点检测，可以选择让模型是否返回检测框，默认不返回）
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/human-keypoints-result'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error-info'
+      tags:
+        - body
+  /vector-database:
+    get:
+      description: 获取向量库列表
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/get-vector-database-result'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error-info'
+      tags:
+        - vector
+    post:
+      description: 创建向量库
+      requestBody:
+        required: true
+        content: 
+          application/json:
+            schema:
+              $ref: '#/components/schemas/vector-database-info'
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error-info'
+      tags:
+        - vector
+    delete:
+      description: 删除向量库
+      parameters:
+        - name: db_id
+          in: path
+          required: true
+          description: 人脸库的 ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error-info'
+      tags:
+        - vector
+  /vector-database/{db_id}:
+    get:
+      description: 向量相似度检索，即 KNN
+      parameters:
+        - name: db_id
+          in: path
+          required: true
+          description: 人脸库的 ID
+          schema:
+            type: string
+        - name: k
+          in: query
+          description: 最多返回 k 个向量
+          schema:
+            type: integer
+            default: 5
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/embedding-vector'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/vector-search-result'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error-info'
+      tags:
+        - vector
+    post:
+      description: 往向量库中添加向量（如果向量 ID 已存在就会修改已有的向量）
+      parameters:
+        - name: db_id
+          in: path
+          required: true
+          description: 人脸库的 ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  vector:
+                    $ref: '#/components/schemas/embedding-vector'
+                  vector_id:
+                    type: string
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error-info'
+      tags:
+        - vector
+    delete:
+      description: 删除向量库中的向量
+      parameters:
+        - name: db_id
+          in: path
+          required: true
+          description: 人脸库的 ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  vector_id:
+                    type: string
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error-info'
+      tags:
+        - vector
+  /multiple-object-tracking:
+    post:
+      description: 执行多目标跟踪
+      parameters:
+        - name: tracking_model
+          in: query
+          required: false
+          description: 使用的多目标跟踪模型
+          schema:
+            type: string
+        - name: trajectory_misson_id
+          in: query
+          required: false
+          description: 目标跟踪任务的 ID （由于目标跟踪是时序的任务，服务端会缓存轨迹的状态信息，通过这个 ID 获取这些信息）
+          schema:
+            type: integer
+        - name: video_frame_rate
+          in: query
+          required: false
+          description: 视频的帧率（第一次发起请求时，应该携带该参数，以初始化算法参数）
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/object-detection-result'  # 可以直接以目标检测的结果作为多目标跟踪的输入
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/multiple-object-tracking-result'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error-info'
+      tags:
+        - trajectory
+components:
+  schemas:
+    face-dection-result:
+      description: 人脸检测结果
+      type: object
+      properties:
+        rects:
+          type: array
+          items:
+            type: object
+            properties:
+              rect:
+                $ref: '#/components/schemas/detection_bbox'
+              score:
+                description: 检测置信度
+                type: number
+                format: float
+              face_landmark:
+                $ref: '#/components/schemas/face-landmark'
+    face-landmark:
+      description: 人脸五点标定（用于人脸对齐）
+      type: array
+      items:
+        type: object
+        properties:
+          x:
+            type: number
+            format: float
+          y:
+            type: number
+            format: float
+      minItems: 5
+      maxItems: 5
+    face-feature-result:
+      description: 人脸特征提取结果
+      type: object
+      properties:
+        feature_vector:
+          $ref: '#/components/schemas/embedding-vector'
+    embedding-vector:
+      description: 嵌入向量
+      type: array
+      items:
+        type: number
+        format: float
+    vector-search-result:
+      description: 向量相似度检索结果
+      type: array
+      items:
+        type: array
+        items:
+          type: object
+          properties:
+            vector_id:
+              type: string
+            distance:
+              description: 结果向量和目标向量之间的距离
+              type: number
+              format: float
+    head-pose-result:
+      description: 头部姿态估计结果
+      type: object
+      properties:
+        yaw:
+          description: 头部的偏航角
+          $ref: '#/components/schemas/head-angle'
+        pitch:
+          description: 头部的俯仰角
+          $ref: '#/components/schemas/head-angle'
+        roll:
+          description: 头部的旋转角
+          $ref: '#/components/schemas/head-angle'
+    head-angle:
+      type: number
+      format: float
+      minimum: -96.0
+      maximum: 96.0
+    blur-detection-result:
+      description: 模糊检测结果
+      type: object
+      properties:
+        blur_degree:
+          description: 图片的模糊度（越大代表图片越模糊）
+          type: number
+          format: float
+          minimum: 0.0
+          maximum: 1.0
+    face-recognition-result:
+      description: 人脸识别结果
+      type: object
+      properties:
+        faces:
+          type: array
+          items:
+            type: object
+            properties:
+              rect:
+                $ref: '#/components/schemas/face-dection-result'
+              feature_vector:
+                $ref: '#/components/schemas/face-feature-result'
+              head_pose:
+                $ref: '#/components/schemas/head-pose-result'
+              blur_degree:
+                $ref: '#/components/schemas/blur-detection-result'
+            required:
+              - rect
+              - feature_vector
+    object-detection-result:
+      description: 通用目标检测结果
+      type: object
+      properties:
+        rects:
+          type: array
+          items:
+            type: object
+            properties:
+              rect:
+                $ref: '#/components/schemas/detection_bbox'
+              score:
+                description: 检测置信度
+                type: number
+                format: float
+              label:
+                description: 检测类别（对应的具体类别取决于检测模型）
+                type: integer
+    human-keypoints-result:
+      description: 人体关键点检测结果
+      type: object
+      properties:
+        multi_people_keypoints:
+          description: 数组每一项是一个人的关键点和检测框
+          type: array
+          items:
+            type: object
+            properties:
+              keypoints:
+                description: 单人的一组关键点（点的数量和对应的位置取决于模型）
+                type: array
+                items:
+                  type: object
+                  properties:
+                    x:
+                      type: number
+                      format: float
+                    y:
+                      type: number
+                      format: float
+                    score:
+                      type: number
+                      format: float
+              rect:
+                $ref: '#/components/schemas/detection_bbox'
+            required:
+              - keypoints
+    get-vector-database-result:
+      description: 获取向量库列表结果
+      type: object
+      properties:
+        db_list:
+          type: array
+          items:
+            $ref: '#/components/schemas/vector-database-info'
+    vector-database-info:
+      type: object
+      properties:
+        db_id:
+          description: 向量库 ID
+          type: string
+        dimension:
+          description: 向量维度
+          type: integer
+        distance_type:
+          description: 做检索时使用的距离类型
+          type: string
+          enum:
+            - "L2_DISTANCE"
+            - "COSINE_DISTANCE"
+    error-info:
+      description: 错误信息
+      type: object
+      properties:
+        error_code:
+          type: integer
+        error_result:
+          type: string
+    detection_bbox:
+      description: 检测框的左上和右下坐标
+      type: object
+      properties:
+        left:
+          description: 左上角 x 坐标
+          type: integer
+        top:
+          description: 左上角 y 坐标
+          type: integer
+        right:
+          description: 右下角 x 坐标
+          type: integer
+        bottom:
+          description: 右下角 y 坐标
+          type: integer
+    multiple-object-tracking-result:
+      description: 多目标跟踪的结果
+      type: object
+      properties:
+        trajectorys:
+          type: array
+          items:
+            type: object
+            properties:
+              trajectory_id:
+                description: 轨迹的 ID
+                type: integer
+              bbox:
+                $ref: '#/components/schemas/detection_bbox'
+        trajectory_misson_id:
+          description: 多目标跟踪任务的 ID，客户端应该缓存该 ID，处理下一帧时在请求里携带该 ID
+          type: integer
